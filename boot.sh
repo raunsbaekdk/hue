@@ -27,7 +27,7 @@ sed -i 's/mail\.add_x_header = .*/mail\.add_x_header = Off/g' /app/vendor/heroku
 
 
 # Launch Nginx with PHP
-vendor/bin/heroku-php-nginx -C nginx_app.conf web/_site
+vendor/bin/heroku-php-nginx -C nginx_app.conf web/
 
 # Launch Apache with PHP
 #vendor/bin/heroku-php-apache2 web/
