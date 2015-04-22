@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Hue</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<link rel="stylesheet" href="//cdn.provider.dk/skeleton/normalize.3.0.2.min.css">
+		<link rel="stylesheet" href="//cdn.provider.dk/skeleton/skeleton.2.0.4.min.css">
+		<style>
+		button:disabled
+		{
+			background-color: #ddd;
+		}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<div class="row">
+				<div class="one-half column" style="margin-top: 25%">
+					<p style="display:none"></p>
+					<form style="display:none">
+						<div class="row">
+							<div class="six columns">
+								<input class="u-full-width" type="text" placeholder="Input API key" name="key" required>
+							</div>
+						</div>
+						<input class="button-primary" type="submit" value="Submit">
+					</form>
+				</div>
+			</div>
+		</div>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+		<script>
+		var internalIp = null;
+		var key = null;
+		var lights = null;
+
+
+		// Key
+		function getKey()
+		{
+			return localStorage.getItem("key");
+		}
+
+		function setKey(key)
+		{
+			return localStorage.setItem("key", key);
+		}
+
+		function testKey(key)
+		{
+			jQuery.ajax
+			({
+				type: "GET",
+				url: "http://" + internalIp + "/api/" + key + "/lights",
+				success: function (b)
+				{
+
+					if(b[0] != undefined && b[0].error != undefined)
+					{
+
+						jQuery("[name='key']").val("");
+
+					} else {
+
+						// Hide form
+						jQuery("form").hide();
+
+						// Get lights
+						getLights();
+
+					}
+				}
+			});
+		}
+
+
+
+		// Lights
+		function getLights()
+		{
+			jQuery.ajax
+			({
+				type: "GET",
+				url: "http://" + internalIp + "/api/" + getKey() + "/lights",
+				success: function (b)
+				{
+					if(b[1] != undefined)
+					{
+
+						lights = b;
+
+						jQuery.each(b, function(key, value)
+						{
+							jQuery("p:first").append("<div>\
+									<h5>Light <strong>" + value.name + "</strong>: <span>" + (value.state.on == true ? 'On' : 'Off') + "</span></h5>\
+									<button data-id=\"" + key + "\"" + (value.state.on == true ? "DISABLED" : "") + " data-state=\"on\">Turn on</button>\
+									<button data-id=\"" + key + "\"" + (value.state.on == true ? "" : "DISABLED") + " data-state=\"off\">Turn off</button>\
+									<br /><br />\
+								</div>");
+						});
+
+						// Show the paragraph
+						jQuery("p:first").show();
+
+					}
+				}
+			});
+		}
+
+		function setLightState(light, state, button)
+		{
+			jQuery.ajax
+			({
+				type: "PUT",
+				url: "http://" + internalIp + "/api/" + getKey() + "/lights/" + light + "/state",
+				contentType: "application/json",
+				data: '{"on":' + state + '}',
+				success: function (b)
+				{
+
+					if(b[0].error == undefined)
+					{
+
+						// Now switch buttons around
+						jQuery(button).prop("disabled", true);
+
+
+						if(jQuery(button).attr("data-state") == "on")
+						{
+
+							jQuery("[data-id='" + light + "'][data-state='off']").prop("disabled", false);
+
+							jQuery(button).closest("div").children("h5").children("span").html("On");
+
+						} else {
+
+							jQuery("[data-id='" + light + "'][data-state='on']").prop("disabled", false);
+
+							jQuery(button).closest("div").children("h5").children("span").html("Off");
+
+						}
+
+					}
+
+				}
+			});
+		}
+
+
+
+		// Startup
+		jQuery(document).ready(function()
+		{
+
+			jQuery.ajax
+			({
+				type: "GET",
+				url: "https://www.meethue.com/api/nupnp",
+				success: function (b)
+				{
+
+					// Save IP
+					internalIp = b[0].internalipaddress;
+
+					if(getKey() == undefined)
+					{
+
+						// Show form with input for key
+						jQuery("form").show();
+
+					} else {
+
+						// Get lights
+						getLights();
+
+					}
+
+				}
+			});
+
+
+			// Listen for form submit
+			jQuery("form").submit(function(event)
+			{
+				var key = jQuery("input", this).val();
+
+
+				testKey(key);
+				setKey(key);
+
+
+				event.preventDefault();
+			});
+
+
+			// Listen for button press
+			jQuery("p:first").on("click", "button", function()
+			{
+				var id = jQuery(this).attr("data-id");
+				var state = (jQuery(this).attr("data-state") == "on" ? 'true' : 'false');
+
+				// Send light state
+				setLightState(id, state, jQuery(this));
+			});
+		});
+		</script>
+	</body>
+</html>
